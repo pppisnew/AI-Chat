@@ -8,7 +8,7 @@ import { ChatInput } from '@/components/Input/ChatInput'
 import { MessageList } from '@/components/Message/MessageList'
 import { useChatSync } from '@/hooks/useChatSync'
 import { useAppStore } from '@/store/useAppStore'
-import { clearConversationMessages, deleteConversation } from '@/db/operations'
+import { clearConversationMessages } from '@/db/operations'
 
 export interface ChatWindowProps {
   className?: string
@@ -16,8 +16,6 @@ export interface ChatWindowProps {
 
 export function ChatWindow({ className = '' }: ChatWindowProps) {
   const activeConversationId = useAppStore((state) => state.activeConversationId)
-  const setActiveConversationId = useAppStore((state) => state.setActiveConversationId)
-  const refreshConversations = useAppStore((state) => state.refreshConversations)
   const isOnline = useAppStore((state) => state.isOnline)
 
   const {
@@ -50,36 +48,23 @@ export function ChatWindow({ className = '' }: ChatWindowProps) {
     }
   }, [activeConversationId])
 
-  // 删除当前会话
-  const handleDeleteConversation = useCallback(async () => {
-    if (!activeConversationId) return
-
-    const confirmed = window.confirm('确定要删除当前会话吗？')
-    if (!confirmed) return
-
-    try {
-      await deleteConversation(activeConversationId)
-      setActiveConversationId(null)
-      refreshConversations()
-    } catch (err) {
-      console.error('Failed to delete conversation:', err)
-    }
-  }, [activeConversationId, setActiveConversationId, refreshConversations])
-
   return (
     <main className={`flex flex-col h-full bg-bg-secondary ${className}`}>
-      {/* 顶部：标题栏 */}
+      {/* 顶部：导航栏 */}
       <header className="flex-shrink-0 flex items-center justify-between
-                         h-14 px-6 border-b border-border-light bg-bg-tertiary">
-        <h1 className="text-lg font-medium text-text-primary truncate">
+                         h-[50px] px-5 border-b border-border-light bg-bg-tertiary">
+        {/* 左侧：会话标题 */}
+        <h1 className="text-base font-medium text-text-primary truncate">
           {activeConversationId ? '对话' : 'Ai-Chat'}
         </h1>
-        <div className="flex items-center gap-2">
+
+        {/* 右侧：操作按钮 */}
+        <div className="flex items-center gap-1">
           {/* 停止生成按钮 */}
           {isLoading && (
             <button
               onClick={stop}
-              className="flex items-center gap-1 px-3 py-1.5
+              className="flex items-center gap-1.5 px-3 py-1.5
                          bg-red-500 hover:bg-red-600
                          text-white rounded-md text-sm
                          transition-colors duration-150"
@@ -90,68 +75,53 @@ export function ChatWindow({ className = '' }: ChatWindowProps) {
                 stroke="currentColor"
                 viewBox="0 0 24 24"
               >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                />
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M9 10a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z"
-                />
+                <rect x="6" y="6" width="12" height="12" rx="2" fill="currentColor" />
               </svg>
               停止
             </button>
           )}
 
-          {/* 会话操作按钮 */}
-          {activeConversationId && (
-            <>
-              {/* 清空会话按钮 */}
-              <button
-                onClick={handleClearConversation}
-                className="p-2 hover:bg-bg-hover rounded-md transition-colors duration-150"
-                title="清空当前会话"
+          {/* 清空会话按钮 */}
+          {activeConversationId ? (
+            <button
+              onClick={handleClearConversation}
+              className="p-2 hover:bg-bg-lightHover rounded-md transition-colors duration-150"
+              title="清空当前会话"
+            >
+              <svg
+                className="w-5 h-5 text-text-secondary"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
               >
-                <svg
-                  className="w-5 h-5 text-text-secondary"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={1.5}
-                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                  />
-                </svg>
-              </button>
-
-              {/* 删除会话按钮 */}
-              <button
-                onClick={handleDeleteConversation}
-                className="p-2 hover:bg-red-50 rounded-md transition-colors duration-150"
-                title="删除当前会话"
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={1.5}
+                  d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                />
+              </svg>
+            </button>
+          ) : (
+            <button
+              disabled
+              className="p-2 cursor-not-allowed opacity-40"
+              title="清空当前会话"
+            >
+              <svg
+                className="w-5 h-5 text-text-secondary"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
               >
-                <svg
-                  className="w-5 h-5 text-text-secondary hover:text-red-500"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={1.5}
-                    d="M6 18L18 6M6 6l12 12"
-                  />
-                </svg>
-              </button>
-            </>
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={1.5}
+                  d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                />
+              </svg>
+            </button>
           )}
         </div>
       </header>

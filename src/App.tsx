@@ -22,7 +22,7 @@ function App() {
   }, [loadSettings])
 
   return (
-    <div className="flex h-screen w-screen bg-bg-secondary">
+    <div className="flex h-screen w-screen bg-bg-secondary overflow-hidden">
       {/* 左侧栏：会话列表 */}
       <Sidebar className="w-64 flex-shrink-0" />
 

@@ -24,37 +24,47 @@ function ConversationItem({ conversation, isActive, onClick, onDelete }: Convers
   return (
     <div
       onClick={onClick}
-      className={`group flex items-center gap-3 px-3 py-2.5 cursor-pointer
+      className={`group flex items-center gap-3 px-4 py-3 cursor-pointer
                   transition-colors duration-150
                   ${isActive
-                    ? 'bg-bg-active'
+                    ? 'bg-[#393939]'
                     : 'hover:bg-bg-hover'
                   }`}
     >
-      {/* 头像 */}
-      <div className="flex-shrink-0 w-10 h-10 rounded-full bg-gradient-to-br from-blue-400 to-purple-500
-                      flex items-center justify-center text-white font-medium text-sm">
+      {/* 头像 - 42x42 圆角矩形 */}
+      <div className="flex-shrink-0 w-[42px] h-[42px] rounded-lg
+                      bg-gradient-to-br from-blue-500 to-purple-600
+                      flex items-center justify-center text-white font-semibold text-base
+                      shadow-sm">
         AI
       </div>
 
-      {/* 内容 */}
-      <div className="flex-1 min-w-0">
-        <h3 className="text-sm font-medium text-text-primary truncate">
-          {conversation.title}
-        </h3>
-        <p className="text-xs text-text-secondary mt-0.5">
-          {formatTime(conversation.updatedAt)}
+      {/* 中间：标题 + 摘要 */}
+      <div className="flex-1 min-w-0 py-0.5">
+        <div className="flex items-center justify-between gap-2">
+          {/* 标题 */}
+          <h3 className="text-sm font-semibold text-text-primaryInverse truncate">
+            {conversation.title}
+          </h3>
+          {/* 时间戳 */}
+          <span className="flex-shrink-0 text-xs text-text-secondaryInverse opacity-70">
+            {formatTime(conversation.updatedAt)}
+          </span>
+        </div>
+        {/* 摘要行 */}
+        <p className="text-xs text-text-secondaryInverse mt-1 truncate opacity-60">
+          点击继续对话
         </p>
       </div>
 
-      {/* 删除按钮 */}
+      {/* 删除按钮 - hover 时显示 */}
       <button
         onClick={(e) => {
           e.stopPropagation()
           onDelete()
         }}
         className="flex-shrink-0 p-1.5 rounded-md opacity-0 group-hover:opacity-100
-                   hover:bg-red-100 text-text-secondary hover:text-red-500
+                   hover:bg-red-500/20 text-text-secondaryInverse hover:text-red-400
                    transition-all duration-150"
         title="删除会话"
       >
@@ -159,14 +169,14 @@ export function Sidebar({ className = '' }: SidebarProps) {
   }
 
   return (
-    <aside className={`flex flex-col h-full bg-bg-primary border-r border-border-light ${className}`}>
+    <aside className={`flex flex-col h-full bg-bg-primary shadow-[4px_0_12px_rgba(0,0,0,0.15)] ${className}`}>
       {/* 顶部：新建按钮 */}
       <div className="flex-shrink-0 p-3">
         <button
           onClick={handleNewChat}
           className="w-full flex items-center justify-center gap-2 px-4 py-2.5
                      bg-wechat-green hover:bg-wechat-greenLight
-                     text-white rounded-md transition-colors duration-150
+                     text-white transition-colors duration-150
                      font-medium text-sm"
         >
           <svg
@@ -191,7 +201,7 @@ export function Sidebar({ className = '' }: SidebarProps) {
         {isLoading ? (
           <div className="flex items-center justify-center h-20">
             <svg
-              className="w-6 h-6 animate-spin text-text-tertiary"
+              className="w-6 h-6 animate-spin text-text-tertiaryInverse"
               fill="none"
               viewBox="0 0 24 24"
             >
@@ -211,7 +221,7 @@ export function Sidebar({ className = '' }: SidebarProps) {
             </svg>
           </div>
         ) : conversations.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full text-text-tertiary">
+          <div className="flex flex-col items-center justify-center h-full text-text-tertiaryInverse">
             <svg
               className="w-16 h-16 mb-3 opacity-30"
               fill="none"
@@ -242,14 +252,14 @@ export function Sidebar({ className = '' }: SidebarProps) {
       </div>
 
       {/* 底部：设置按钮 */}
-      <div className="flex-shrink-0 p-3 border-t border-border-light">
+      <div className="flex-shrink-0 p-3 border-t border-border-sidebar">
         <button
           onClick={handleOpenSettings}
           className="w-full flex items-center gap-3 px-3 py-2.5
                      hover:bg-bg-hover rounded-md transition-colors duration-150"
         >
           <svg
-            className="w-5 h-5 text-text-secondary"
+            className="w-5 h-5 text-text-secondaryInverse"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -267,7 +277,7 @@ export function Sidebar({ className = '' }: SidebarProps) {
               d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
             />
           </svg>
-          <span className="text-sm text-text-primary">设置</span>
+          <span className="text-sm text-text-primaryInverse">设置</span>
         </button>
       </div>
     </aside>

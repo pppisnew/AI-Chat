@@ -37,9 +37,9 @@ function TypingIndicator() {
       {/* 打字动画 */}
       <div className="bg-bubble-assistant rounded-bubble px-4 py-2.5 shadow-wechat">
         <div className="flex gap-1">
-          <span className="w-2 h-2 bg-gray-400 rounded-full animate-typing" style={{ animationDelay: '0ms' }} />
-          <span className="w-2 h-2 bg-gray-400 rounded-full animate-typing" style={{ animationDelay: '200ms' }} />
-          <span className="w-2 h-2 bg-gray-400 rounded-full animate-typing" style={{ animationDelay: '400ms' }} />
+          <span className="w-2 h-2 bg-text-secondary rounded-full animate-typing" style={{ animationDelay: '0ms' }} />
+          <span className="w-2 h-2 bg-text-secondary rounded-full animate-typing" style={{ animationDelay: '200ms' }} />
+          <span className="w-2 h-2 bg-text-secondary rounded-full animate-typing" style={{ animationDelay: '400ms' }} />
         </div>
       </div>
     </div>
@@ -121,22 +121,24 @@ export function MessageList({
   if (messages.length === 0) {
     return (
       <div className={`flex items-center justify-center ${className}`}>
-        <div className="text-center text-text-tertiary">
-          <svg
-            className="w-20 h-20 mx-auto mb-4 opacity-20"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={1}
-              d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"
-            />
-          </svg>
-          <p className="text-base mb-1">开始新对话</p>
-          <p className="text-sm opacity-70">输入消息与 AI 开始聊天</p>
+        <div className="text-center" style={{ marginTop: '-10%' }}>
+          {/* AI Logo */}
+          <div className="w-24 h-24 mx-auto mb-6 rounded-full
+                          bg-gradient-to-br from-blue-400 via-purple-400 to-pink-400
+                          flex items-center justify-center
+                          shadow-lg shadow-purple-200/50">
+            <span className="text-4xl font-bold text-white tracking-tight">AI</span>
+          </div>
+
+          {/* 主标题 */}
+          <h2 className="text-xl font-medium text-text-primary mb-2">
+            开始新对话
+          </h2>
+
+          {/* 副标题 */}
+          <p className="text-sm text-text-secondary">
+            输入消息与 AI 开始聊天
+          </p>
         </div>
       </div>
     )

@@ -25,7 +25,9 @@ export function ChatInput({
     const textarea = textareaRef.current
     if (textarea) {
       textarea.style.height = 'auto'
-      textarea.style.height = `${Math.min(textarea.scrollHeight, 200)}px`
+      // 最大高度为屏幕的一半
+      const maxHeight = window.innerHeight * 0.5
+      textarea.style.height = `${Math.min(textarea.scrollHeight, maxHeight)}px`
     }
   }, [])
 
@@ -58,7 +60,7 @@ export function ChatInput({
   const isDisabled = disabled || !isOnline
 
   return (
-    <div className={`border-t border-border-light bg-bg-tertiary ${className}`}>
+    <div className={`bg-white ${className}`}>
       {/* 离线提示 */}
       {!isOnline && (
         <div className="px-4 pt-3">
@@ -81,38 +83,43 @@ export function ChatInput({
         </div>
       )}
 
-      <div className="flex items-end gap-3 p-4">
-        {/* 输入框 */}
-        <textarea
-          ref={textareaRef}
-          value={content}
-          onChange={handleInput}
-          onKeyDown={handleKeyDown}
-          placeholder={isOnline ? "输入消息，Enter 发送，Shift+Enter 换行" : "网络已断开"}
-          disabled={isDisabled}
-          rows={1}
-          className="flex-1 resize-none px-4 py-2.5
-                     bg-bg-secondary border border-border-medium rounded-lg
-                     text-text-primary placeholder-text-tertiary
-                     focus:outline-none focus:border-wechat-green
-                     disabled:opacity-50 disabled:cursor-not-allowed
-                     transition-colors duration-150"
-          style={{ maxHeight: '200px' }}
-        />
+      {/* 输入区域容器 - 白色背景 */}
+      <div className="p-4">
+        {/* 输入框外层 - 白色背景卡片 */}
+        <div className="flex items-end gap-3 p-3 bg-white rounded-xl border border-gray-100 shadow-sm">
+          {/* 文本域 */}
+          <textarea
+            ref={textareaRef}
+            value={content}
+            onChange={handleInput}
+            onKeyDown={handleKeyDown}
+            placeholder="输入消息，Enter 发送，Shift + Enter 换行"
+            disabled={isDisabled}
+            rows={1}
+            className="flex-1 resize-none px-3 py-2
+                       bg-gray-50 rounded-lg
+                       text-text-primary text-sm leading-relaxed
+                       placeholder:text-xs placeholder:text-[#B2B2B2]
+                       focus:outline-none focus:bg-gray-100
+                       disabled:opacity-50 disabled:cursor-not-allowed
+                       transition-colors duration-150"
+            style={{ minHeight: '40px', maxHeight: '50vh' }}
+          />
 
-        {/* 发送按钮 */}
-        <button
-          onClick={handleSend}
-          disabled={!canSend}
-          className={`flex-shrink-0 px-5 py-2.5 rounded-lg font-medium text-sm
-                      transition-all duration-150
-                      ${canSend
-                        ? 'bg-wechat-green hover:bg-wechat-greenLight text-white'
-                        : 'bg-bg-hover text-text-tertiary cursor-not-allowed'
-                      }`}
-        >
-          发送
-        </button>
+          {/* 发送按钮 */}
+          <button
+            onClick={handleSend}
+            disabled={!canSend}
+            className={`flex-shrink-0 px-5 py-2.5 rounded-lg font-medium text-sm
+                        transition-colors duration-150
+                        ${canSend
+                          ? 'bg-[#07C160] hover:bg-[#06AD56] text-white'
+                          : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                        }`}
+          >
+            发送
+          </button>
+        </div>
       </div>
     </div>
   )

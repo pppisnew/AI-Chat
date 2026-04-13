@@ -14,6 +14,8 @@
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  /* 全局主文本颜色 - 深灰而非纯黑 */
+  color: #1A1A1A;
 }
 
 * {
@@ -47,6 +49,15 @@ body,
 
 ::-webkit-scrollbar-thumb:hover {
   background: #a1a1a1;
+}
+
+/* 左侧栏滚动条 - 深色背景适配 */
+.bg-bg-primary ::-webkit-scrollbar-thumb {
+  background: #555555;
+}
+
+.bg-bg-primary ::-webkit-scrollbar-thumb:hover {
+  background: #666666;
 }
 
 /* 代码高亮主题 - 补充 */
