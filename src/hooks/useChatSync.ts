@@ -1,15 +1,9 @@
 /**
- * 桥接 Vercel AI SDK 与本地数据库
- * 核心数据流控制 Hook
- *
- * 数据流生命周期：
- * 1. 加载：从 Dexie 读取历史消息，作为 useChat 的 initialMessages
- * 2. 交互：用户发送消息，AI 流式回复，只更新内存和 UI
- * 3. 落盘：onFinish 回调触发时，批量写入 IndexedDB
+ * 聊天同步 Hook
+ * 直接调用智谱 API，手动处理流式响应
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { useChat, type Message as AiMessage } from 'ai/react'
 import { useAppStore } from '@/store/useAppStore'
 import {
   createConversation,
@@ -21,38 +15,42 @@ import {
 import { estimateMessagesTokens, MAX_CONTEXT_TOKENS } from '@/utils/token'
 import type { Message } from '@/types'
 
-/** 将数据库 Message 转换为 AI SDK Message 格式 */
-function dbMessageToAiMessage(msg: Message): AiMessage {
+/** 消息类型 */
+export interface ChatMessage {
+  id: string
+  role: 'user' | 'assistant' | 'system'
+  content: string
+  createdAt: number
+}
+
+/** 将数据库 Message 转换为 ChatMessage */
+function dbToChatMessage(msg: Message): ChatMessage {
   return {
     id: msg.id,
-    role: msg.role as 'user' | 'assistant' | 'system',
+    role: msg.role,
     content: msg.content,
-    createdAt: new Date(msg.createdAt),
+    createdAt: msg.createdAt,
   }
 }
 
-/** 将 AI Message 转换为数据库格式 */
-function aiMessageToDbMessage(msg: AiMessage, conversationId: string): Omit<Message, 'id' | 'createdAt'> {
+/** 将 ChatMessage 转换为数据库格式 */
+function chatToDbMessage(msg: ChatMessage, conversationId: string): Omit<Message, 'id' | 'createdAt'> {
   return {
     conversationId,
-    role: msg.role as 'user' | 'assistant' | 'system',
+    role: msg.role,
     content: msg.content,
   }
 }
 
-/**
- * 截断消息历史以符合 token 限制
- */
-function truncateMessages(messages: AiMessage[], maxTokens: number): AiMessage[] {
+/** 截断消息历史 */
+function truncateMessages(messages: ChatMessage[], maxTokens: number): ChatMessage[] {
   if (messages.length === 0) return []
 
-  // 保留 system 消息
   const systemMessage = messages.find(m => m.role === 'system')
   const nonSystemMessages = messages.filter(m => m.role !== 'system')
 
-  // 从最新的消息开始累加
   const reversed = [...nonSystemMessages].reverse()
-  const selected: AiMessage[] = []
+  const selected: ChatMessage[] = []
   let totalTokens = systemMessage ? estimateMessagesTokens([{ content: systemMessage.content }]) : 0
 
   for (const msg of reversed) {
@@ -64,7 +62,6 @@ function truncateMessages(messages: AiMessage[], maxTokens: number): AiMessage[]
     totalTokens += msgTokens
   }
 
-  // 添加 system 消息到开头
   if (systemMessage) {
     selected.unshift(systemMessage)
   }
@@ -72,26 +69,45 @@ function truncateMessages(messages: AiMessage[], maxTokens: number): AiMessage[]
   return selected
 }
 
+/** 解析 SSE 流 */
+async function* parseSSEStream(stream: ReadableStream<Uint8Array>): AsyncGenerator<string> {
+  const reader = stream.getReader()
+  const decoder = new TextDecoder()
+  let buffer = ''
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+
+      buffer += decoder.decode(value, { stream: true })
+      const lines = buffer.split('\n')
+      buffer = lines.pop() ?? ''
+
+      for (const line of lines) {
+        const trimmed = line.trim()
+        if (trimmed.startsWith('data:')) {
+          const data = trimmed.slice(5).trim()
+          if (data === '[DONE]') return
+          yield data
+        }
+      }
+    }
+  } finally {
+    reader.releaseLock()
+  }
+}
+
 export interface UseChatSyncReturn {
-  /** 发送消息 */
   sendMessage: (content: string) => Promise<void>
-  /** 当前消息列表 */
-  messages: AiMessage[]
-  /** 是否正在加载（AI 生成中） */
+  messages: ChatMessage[]
   isLoading: boolean
-  /** 是否正在初始化（从数据库加载） */
   isInitializing: boolean
-  /** 错误信息 */
   error: Error | null
-  /** 重新加载会话历史 */
   reloadConversation: () => Promise<void>
-  /** 停止生成 */
   stop: () => void
-  /** 输入内容 */
   input: string
-  /** 设置输入内容 */
   setInput: (value: string) => void
-  /** 处理输入变化 */
   handleInputChange: (e: React.ChangeEvent<HTMLTextAreaElement>) => void
 }
 
@@ -101,88 +117,14 @@ export function useChatSync(): UseChatSyncReturn {
   const refreshConversations = useAppStore((state) => state.refreshConversations)
   const settings = useAppStore((state) => state.settings)
 
+  const [messages, setMessages] = useState<ChatMessage[]>([])
+  const [isLoading, setIsLoading] = useState(false)
   const [isInitializing, setIsInitializing] = useState(false)
   const [error, setError] = useState<Error | null>(null)
+  const [input, setInput] = useState('')
 
-  // 用于追踪待落盘的用户消息
-  const pendingUserMessageRef = useRef<AiMessage | null>(null)
-
-  // 初始化 useChat
-  const {
-    messages,
-    isLoading,
-    append,
-    setMessages,
-    stop,
-    input,
-    setInput,
-    handleInputChange,
-  } = useChat({
-    api: `${settings.baseUrl}chat/completions`,
-    headers: {
-      Authorization: `Bearer ${settings.apiKey}`,
-    },
-    body: {
-      model: settings.model,
-    },
-    // 构建请求时添加系统提示词并截断上下文
-    experimental_prepareRequestBody: (options) => {
-      const systemPrompt = settings.systemPrompt
-      const systemMessage: AiMessage = {
-        id: 'system',
-        role: 'system',
-        content: systemPrompt,
-      }
-
-      // 过滤掉系统消息并截断
-      const historyMessages = (options.messages || []).filter(m => m.role !== 'system')
-      const truncated = truncateMessages(historyMessages, MAX_CONTEXT_TOKENS)
-
-      return {
-        model: settings.model,
-        messages: [systemMessage, ...truncated],
-        stream: true,
-      }
-    },
-    // AI 回复完成时落盘
-    onFinish: async (message) => {
-      const conversationId = activeConversationId
-      if (!conversationId) return
-
-      // 落盘用户消息和 AI 回复
-      const messagesToSave: Omit<Message, 'id' | 'createdAt'>[] = []
-
-      if (pendingUserMessageRef.current) {
-        messagesToSave.push(aiMessageToDbMessage(pendingUserMessageRef.current, conversationId))
-      }
-
-      messagesToSave.push(aiMessageToDbMessage(message, conversationId))
-
-      try {
-        await addMessages(messagesToSave)
-        await touchConversation(conversationId)
-
-        // 如果是首条消息，更新会话标题
-        if (pendingUserMessageRef.current) {
-          const title = pendingUserMessageRef.current.content.slice(0, 20)
-          await updateConversationTitle(conversationId, title)
-        }
-
-        // 触发会话列表刷新
-        refreshConversations()
-      } catch (err) {
-        console.error('Failed to save messages:', err)
-        setError(err instanceof Error ? err : new Error('Failed to save messages'))
-      }
-
-      pendingUserMessageRef.current = null
-    },
-    onError: (err) => {
-      console.error('Chat error:', err)
-      setError(err)
-      pendingUserMessageRef.current = null
-    },
-  })
+  const abortControllerRef = useRef<AbortController | null>(null)
+  const pendingUserMessageRef = useRef<ChatMessage | null>(null)
 
   // 加载会话历史
   const loadConversationHistory = useCallback(async (conversationId: string) => {
@@ -191,15 +133,15 @@ export function useChatSync(): UseChatSyncReturn {
 
     try {
       const dbMessages = await getMessagesByConversation(conversationId)
-      const aiMessages = dbMessages.map(dbMessageToAiMessage)
-      setMessages(aiMessages)
+      const chatMessages = dbMessages.map(dbToChatMessage)
+      setMessages(chatMessages)
     } catch (err) {
       console.error('Failed to load conversation:', err)
       setError(err instanceof Error ? err : new Error('Failed to load conversation'))
     } finally {
       setIsInitializing(false)
     }
-  }, [setMessages])
+  }, [])
 
   // 切换会话时加载历史
   useEffect(() => {
@@ -208,15 +150,15 @@ export function useChatSync(): UseChatSyncReturn {
     } else {
       setMessages([])
     }
-  }, [activeConversationId, loadConversationHistory, setMessages])
+  }, [activeConversationId, loadConversationHistory])
 
   // 发送消息
   const sendMessage = useCallback(async (content: string) => {
-    if (!content.trim()) return
+    if (!content.trim() || isLoading) return
 
     setError(null)
 
-    // 如果没有活动会话，先创建
+    // 创建或获取会话 ID
     let conversationId = activeConversationId
     if (!conversationId) {
       try {
@@ -230,24 +172,137 @@ export function useChatSync(): UseChatSyncReturn {
     }
 
     // 创建用户消息
-    const userMessage: AiMessage = {
+    const userMessage: ChatMessage = {
       id: crypto.randomUUID(),
       role: 'user',
       content: content.trim(),
-      createdAt: new Date(),
+      createdAt: Date.now(),
     }
 
-    // 保存引用用于 onFinish 落盘
+    // 立即显示用户消息
+    setMessages(prev => [...prev, userMessage])
     pendingUserMessageRef.current = userMessage
 
-    try {
-      await append(userMessage)
-    } catch (err) {
-      console.error('Failed to send message:', err)
-      setError(err instanceof Error ? err : new Error('Failed to send message'))
-      pendingUserMessageRef.current = null
+    // 创建 AI 消息占位
+    const aiMessageId = crypto.randomUUID()
+    setMessages(prev => [...prev, {
+      id: aiMessageId,
+      role: 'assistant',
+      content: '',
+      createdAt: Date.now(),
+    }])
+
+    setIsLoading(true)
+
+    // 取消之前的请求
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort()
     }
-  }, [activeConversationId, setActiveConversationId, append])
+    abortControllerRef.current = new AbortController()
+
+    try {
+      // 构建消息列表
+      const systemPrompt = settings.systemPrompt
+      const historyMessages = messages.filter(m => m.role !== 'system')
+      const truncated = truncateMessages(historyMessages, MAX_CONTEXT_TOKENS)
+
+      const apiMessages = [
+        { role: 'system' as const, content: systemPrompt },
+        ...truncated.map(m => ({
+          role: m.role as 'user' | 'assistant',
+          content: m.content,
+        })),
+        { role: 'user' as const, content: content.trim() },
+      ]
+
+      // 调用 API
+      const response = await fetch(`${settings.baseUrl}chat/completions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${settings.apiKey}`,
+        },
+        body: JSON.stringify({
+          model: settings.model,
+          messages: apiMessages,
+          stream: true,
+        }),
+        signal: abortControllerRef.current.signal,
+      })
+
+      if (!response.ok) {
+        const errorText = await response.text()
+        throw new Error(`API 错误 (${response.status}): ${errorText}`)
+      }
+
+      // 处理流式响应
+      let fullContent = ''
+      for await (const data of parseSSEStream(response.body!)) {
+        try {
+          const parsed = JSON.parse(data)
+          const delta = parsed.choices?.[0]?.delta?.content
+          if (delta) {
+            fullContent += delta
+            // 更新 AI 消息内容
+            setMessages(prev => prev.map(m =>
+              m.id === aiMessageId
+                ? { ...m, content: fullContent }
+                : m
+            ))
+          }
+        } catch {
+          // 忽略解析错误
+        }
+      }
+
+      // 保存到数据库
+      const aiMessage: ChatMessage = {
+        id: aiMessageId,
+        role: 'assistant',
+        content: fullContent,
+        createdAt: Date.now(),
+      }
+
+      await addMessages([
+        chatToDbMessage(userMessage, conversationId),
+        chatToDbMessage(aiMessage, conversationId),
+      ])
+      await touchConversation(conversationId)
+
+      // 更新会话标题
+      const title = userMessage.content.slice(0, 20)
+      await updateConversationTitle(conversationId, title)
+
+      refreshConversations()
+    } catch (err) {
+      if (err instanceof Error && err.name === 'AbortError') {
+        // 用户取消，不报错
+        return
+      }
+      console.error('Chat error:', err)
+      setError(err instanceof Error ? err : new Error('发送消息失败'))
+      // 移除失败的消息
+      setMessages(prev => prev.filter(m => m.id !== aiMessageId))
+    } finally {
+      setIsLoading(false)
+      pendingUserMessageRef.current = null
+      abortControllerRef.current = null
+    }
+  }, [
+    activeConversationId,
+    setActiveConversationId,
+    refreshConversations,
+    settings,
+    messages,
+    isLoading,
+  ])
+
+  // 停止生成
+  const stop = useCallback(() => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort()
+    }
+  }, [])
 
   // 重新加载会话
   const reloadConversation = useCallback(async () => {
@@ -255,6 +310,11 @@ export function useChatSync(): UseChatSyncReturn {
       await loadConversationHistory(activeConversationId)
     }
   }, [activeConversationId, loadConversationHistory])
+
+  // 处理输入变化
+  const handleInputChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setInput(e.target.value)
+  }, [])
 
   return {
     sendMessage,

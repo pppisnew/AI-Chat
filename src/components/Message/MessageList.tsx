@@ -1,17 +1,25 @@
 /**
  * 消息流列表
  * 集成 react-virtuoso 虚拟滚动
+ * 优化流式输出时的自动滚动
  */
 
-import { useRef, useEffect } from 'react'
-import { Virtuoso } from 'react-virtuoso'
-import { type Message as AiMessage } from 'ai/react'
+import { useRef, useEffect, useCallback } from 'react'
+import { Virtuoso, type VirtuosoHandle } from 'react-virtuoso'
 import { MessageItem } from './MessageItem'
 import type { Message } from '@/types'
 
+/** 消息类型 */
+export interface ChatMessage {
+  id: string
+  role: 'user' | 'assistant' | 'system'
+  content: string
+  createdAt: number
+}
+
 export interface MessageListProps {
   className?: string
-  messages: AiMessage[]
+  messages: ChatMessage[]
   isLoading?: boolean
   isInitializing?: boolean
 }
@@ -44,18 +52,40 @@ export function MessageList({
   isLoading = false,
   isInitializing = false,
 }: MessageListProps) {
-  const virtuosoRef = useRef<React.ComponentRef<typeof Virtuoso>>(null)
+  const virtuosoRef = useRef<VirtuosoHandle>(null)
+  // 追踪是否应该自动滚动（用户在底部时）
+  const shouldAutoScrollRef = useRef(true)
 
-  // 消息更新时自动滚动到底部
-  useEffect(() => {
-    if (messages.length > 0 && virtuosoRef.current) {
+  // 滚动到底部
+  const scrollToBottom = useCallback((behavior: 'smooth' | 'auto' = 'smooth') => {
+    if (virtuosoRef.current && messages.length > 0) {
       virtuosoRef.current.scrollToIndex({
         index: messages.length - 1,
-        behavior: 'smooth',
+        behavior,
         align: 'end',
       })
     }
-  }, [messages.length, messages[messages.length - 1]?.content])
+  }, [messages.length])
+
+  // 消息更新时自动滚动（仅当用户在底部时）
+  useEffect(() => {
+    if (shouldAutoScrollRef.current && messages.length > 0) {
+      // 检查最后一条消息是否是 assistant 且正在生成
+      const lastMessage = messages[messages.length - 1]
+      if (lastMessage?.role === 'assistant') {
+        scrollToBottom('auto') // 流式输出时使用 instant 滚动
+      } else {
+        scrollToBottom('smooth')
+      }
+    }
+  }, [messages, scrollToBottom])
+
+  // 新消息时滚动到底部
+  useEffect(() => {
+    if (messages.length > 0) {
+      scrollToBottom('smooth')
+    }
+  }, [messages.length, scrollToBottom])
 
   // 加载状态
   if (isInitializing) {
@@ -112,13 +142,13 @@ export function MessageList({
     )
   }
 
-  // 将 UIMessage 转换为 Message 格式用于显示
+  // 将 ChatMessage 转换为 Message 格式用于显示
   const formattedMessages: Message[] = messages.map((msg) => ({
     id: msg.id,
     conversationId: '',
-    role: msg.role as 'user' | 'assistant' | 'system',
+    role: msg.role,
     content: msg.content,
-    createdAt: msg.createdAt ? new Date(msg.createdAt).getTime() : Date.now(),
+    createdAt: msg.createdAt,
   }))
 
   return (
@@ -130,11 +160,14 @@ export function MessageList({
           <MessageItem key={message.id} message={message} />
         )}
         className="h-full"
-        followOutput="smooth"
+        followOutput={isLoading ? 'auto' : 'smooth'}
+        atBottomStateChange={(atBottom) => {
+          shouldAutoScrollRef.current = atBottom
+        }}
+        components={{
+          Footer: () => isLoading ? <TypingIndicator /> : null,
+        }}
       />
-
-      {/* AI 正在输入指示器 */}
-      {isLoading && <TypingIndicator />}
     </div>
   )
 }

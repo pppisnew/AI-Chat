@@ -1,6 +1,9 @@
 # Dependencies
 node_modules/
 
+# macOS resource files
+._*
+
 # Build output
 dist/
 build/
