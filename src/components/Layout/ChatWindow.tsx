@@ -52,7 +52,7 @@ export function ChatWindow({ className = '' }: ChatWindowProps) {
     <main className={`flex flex-col h-full bg-bg-secondary ${className}`}>
       {/* 顶部：导航栏 */}
       <header className="flex-shrink-0 flex items-center justify-between
-                         h-[50px] px-5 border-b border-border-light bg-bg-tertiary">
+                         h-[60px] px-6 border-b border-border-light bg-bg-tertiary">
         {/* 左侧：会话标题 */}
         <h1 className="text-base font-medium text-text-primary truncate">
           {activeConversationId ? '对话' : 'Ai-Chat'}

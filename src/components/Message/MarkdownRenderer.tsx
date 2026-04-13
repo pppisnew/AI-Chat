@@ -43,7 +43,7 @@ function CodeBlock({
   return (
     <div className="relative group my-2">
       {/* 语言标签和复制按钮 */}
-      <div className="flex items-center justify-between px-3 py-1 bg-gray-200 rounded-t-lg text-xs">
+      <div className="flex items-center justify-between px-3 py-1 bg-gray-100 border-b border-gray-200 rounded-t-lg text-xs">
         <span className="text-gray-600 font-mono">{language || 'text'}</span>
         <button
           onClick={handleCopy}

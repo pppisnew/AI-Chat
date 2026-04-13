@@ -60,7 +60,7 @@ export function ChatInput({
   const isDisabled = disabled || !isOnline
 
   return (
-    <div className={`bg-white ${className}`}>
+    <div className={`bg-bg-secondary border-t border-border-light ${className}`}>
       {/* 离线提示 */}
       {!isOnline && (
         <div className="px-4 pt-3">
@@ -86,7 +86,7 @@ export function ChatInput({
       {/* 输入区域容器 - 白色背景 */}
       <div className="p-4">
         {/* 输入框外层 - 白色背景卡片 */}
-        <div className="flex items-end gap-3 p-3 bg-white rounded-xl border border-gray-100 shadow-sm">
+        <div className="flex items-end gap-3 p-3 bg-bg-tertiary rounded-xl border border-border-light shadow-sm focus-within:border-wechat-green focus-within:ring-1 focus-within:ring-wechat-green transition-all duration-150">
           {/* 文本域 */}
           <textarea
             ref={textareaRef}
@@ -113,7 +113,7 @@ export function ChatInput({
             className={`flex-shrink-0 px-5 py-2.5 rounded-lg font-medium text-sm
                         transition-colors duration-150
                         ${canSend
-                          ? 'bg-[#07C160] hover:bg-[#06AD56] text-white'
+                          ? 'bg-wechat-green hover:bg-wechat-greenDark text-white'
                           : 'bg-gray-200 text-gray-400 cursor-not-allowed'
                         }`}
           >

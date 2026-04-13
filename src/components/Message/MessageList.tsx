@@ -29,7 +29,7 @@ function TypingIndicator() {
   return (
     <div className="flex gap-3 px-4 py-3">
       {/* AI 头像 */}
-      <div className="flex-shrink-0 w-10 h-10 rounded-full bg-gradient-to-br from-blue-400 to-purple-500
+      <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-gradient-to-br from-blue-400 to-purple-500 shadow-sm
                       flex items-center justify-center text-white font-medium text-sm">
         AI
       </div>
@@ -121,7 +121,7 @@ export function MessageList({
   if (messages.length === 0) {
     return (
       <div className={`flex items-center justify-center ${className}`}>
-        <div className="text-center" style={{ marginTop: '-10%' }}>
+        <div className="text-center -mt-[10%]">
           {/* AI Logo */}
           <div className="w-24 h-24 mx-auto mb-6 rounded-full
                           bg-gradient-to-br from-blue-400 via-purple-400 to-pink-400

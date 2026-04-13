@@ -175,7 +175,7 @@ export function Sidebar({ className = '' }: SidebarProps) {
         <button
           onClick={handleNewChat}
           className="w-full flex items-center justify-center gap-2 px-4 py-2.5
-                     bg-wechat-green hover:bg-wechat-greenLight
+                     bg-wechat-green hover:bg-wechat-greenDark rounded-lg shadow-sm
                      text-white transition-colors duration-150
                      font-medium text-sm"
         >

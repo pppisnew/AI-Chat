@@ -21,12 +21,12 @@ export function MessageItem({ message, className = '' }: MessageItemProps) {
     >
       {/* 头像 */}
       {isUser ? (
-        <div className="flex-shrink-0 w-10 h-10 rounded-full bg-wechat-green
+        <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-wechat-green shadow-sm
                         flex items-center justify-center text-white font-medium text-sm">
           我
         </div>
       ) : (
-        <div className="flex-shrink-0 w-10 h-10 rounded-full bg-gradient-to-br from-blue-400 to-purple-500
+        <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-gradient-to-br from-blue-400 to-purple-500 shadow-sm
                         flex items-center justify-center text-white font-medium text-sm">
           AI
         </div>
