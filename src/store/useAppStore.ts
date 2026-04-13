@@ -13,6 +13,8 @@ interface AppState {
   isLoading: boolean
   /** 网络状态 */
   isOnline: boolean
+  /** 会话列表刷新计数器 */
+  conversationRefreshCounter: number
 
   // Actions
   setActiveConversationId: (id: string | null) => void
@@ -22,6 +24,7 @@ interface AppState {
   setIsOnline: (online: boolean) => void
   loadSettings: () => void
   saveSettings: () => void
+  refreshConversations: () => void
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -30,11 +33,13 @@ export const useAppStore = create<AppState>((set, get) => ({
   settings: DEFAULT_SETTINGS,
   isLoading: false,
   isOnline: navigator.onLine,
+  conversationRefreshCounter: 0,
 
   setActiveConversationId: (id) => set({ activeConversationId: id }),
   setIsSettingsOpen: (open) => set({ isSettingsOpen: open }),
   setIsLoading: (loading) => set({ isLoading: loading }),
   setIsOnline: (online) => set({ isOnline: online }),
+  refreshConversations: () => set((state) => ({ conversationRefreshCounter: state.conversationRefreshCounter + 1 })),
 
   setSettings: (newSettings) =>
     set((state) => ({
